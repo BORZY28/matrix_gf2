@@ -47,6 +47,7 @@ public:
     
     /**
      * @brief Конструктор из двумерного массива элементов GF
+     * @note Используется стандартный модуль {1, 1} для простых полей GF(p)
      */
     Matrix(const std::vector<std::vector<GFElement>>& data);
     
