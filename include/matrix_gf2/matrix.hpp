@@ -9,6 +9,15 @@
 
 namespace matrix_gf2 {
 
+// Forward declaration
+class Matrix;
+
+// Result structure for Gaussian elimination
+struct GaussResult;
+
+// Submatrix information  
+struct SubmatrixInfo;
+
 /**
  * @brief Класс для представления матрицы над полем GF(p^m)
  */
@@ -90,14 +99,6 @@ public:
     void multiplyRow(size_t i, const GFElement& scalar);
     void addRow(size_t dest, size_t src, const GFElement& scalar);
     
-    // Гауссово исключение
-    struct GaussResult {
-        Matrix matrix;
-        size_t rank;
-        std::vector<size_t> pivotCols;
-        std::vector<std::string> steps;  // Для учебного режима
-    };
-    
     /**
      * @brief Прямой ход Гаусса (приведение к ступенчатому виду)
      * @param educational Включить учебный режим с объяснениями
@@ -139,11 +140,6 @@ public:
      * @brief Поиск обратимой подматрицы максимального размера
      * @return Индексы строк и столбцов обратимой подматрицы
      */
-    struct SubmatrixInfo {
-        std::vector<size_t> rows;
-        std::vector<size_t> cols;
-        Matrix submatrix;
-    };
     std::optional<SubmatrixInfo> findInvertibleSubmatrix() const;
     
     /**
@@ -179,6 +175,27 @@ private:
     
     // Поиск ведущего элемента
     std::optional<size_t> findPivot(const Matrix& mat, size_t col, size_t startRow) const;
+};
+
+// Gaussian elimination result structure
+struct GaussResult {
+    Matrix matrix;
+    size_t rank = 0;
+    std::vector<size_t> pivotCols;
+    std::vector<std::string> steps;
+    
+    // Constructor
+    GaussResult(const Matrix& m) : matrix(m), rank(0) {}
+};
+
+// Submatrix information structure
+struct SubmatrixInfo {
+    std::vector<size_t> rows;
+    std::vector<size_t> cols;
+    Matrix submatrix;
+    
+    // Constructor
+    SubmatrixInfo(const Matrix& m) : submatrix(m) {}
 };
 
 } // namespace matrix_gf2

@@ -86,8 +86,8 @@ public:
 private:
     uint32_t p_;  // Характеристика поля
     uint32_t m_;  // Степень расширения
-    std::vector<uint32_t> coeffs_;  // Коэффициенты полинома
     std::vector<uint32_t> modulus_; // Неприводимый полином
+    std::vector<uint32_t> coeffs_;  // Коэффициенты полинома
     
     // Приведение по модулю p
     void reduce();

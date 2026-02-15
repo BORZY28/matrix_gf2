@@ -269,22 +269,20 @@ std::optional<size_t> Matrix::findPivot(const Matrix& mat, size_t col, size_t st
     return std::nullopt;
 }
 
-Matrix::GaussResult Matrix::forwardGauss(bool educational) const {
+GaussResult Matrix::forwardGauss(bool educational) const {
     return gaussElimination(true, false, educational);
 }
 
-Matrix::GaussResult Matrix::backwardGauss(bool educational) const {
+GaussResult Matrix::backwardGauss(bool educational) const {
     return gaussElimination(false, true, educational);
 }
 
-Matrix::GaussResult Matrix::reducedRowEchelonForm(bool educational) const {
+GaussResult Matrix::reducedRowEchelonForm(bool educational) const {
     return gaussElimination(true, true, educational);
 }
 
-Matrix::GaussResult Matrix::gaussElimination(bool forward, bool backward, bool educational) const {
-    GaussResult result;
-    result.matrix = *this;
-    result.rank = 0;
+GaussResult Matrix::gaussElimination(bool forward, bool backward, bool educational) const {
+    GaussResult result(*this);  // Use the constructor
     
     size_t currentRow = 0;
     
@@ -493,7 +491,7 @@ std::optional<Matrix> Matrix::inverse(bool educational) const {
     return inv;
 }
 
-std::optional<Matrix::SubmatrixInfo> Matrix::findInvertibleSubmatrix() const {
+std::optional<SubmatrixInfo> Matrix::findInvertibleSubmatrix() const {
     size_t maxSize = std::min(rows_, cols_);
     
     // Пробуем найти обратимую подматрицу максимального размера
@@ -531,10 +529,9 @@ std::optional<Matrix::SubmatrixInfo> Matrix::findInvertibleSubmatrix() const {
                 // Проверяем подматрицу
                 Matrix sub = submatrix(selectedRows, selectedCols);
                 if (sub.isInvertible()) {
-                    SubmatrixInfo info;
+                    SubmatrixInfo info(sub);
                     info.rows = selectedRows;
                     info.cols = selectedCols;
-                    info.submatrix = sub;
                     return info;
                 }
                 

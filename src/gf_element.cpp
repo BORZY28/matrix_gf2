@@ -47,7 +47,7 @@ GFElement::GFElement(const std::vector<uint32_t>& coeffs, uint32_t p, uint32_t m
     }
     
     coeffs_.resize(m, 0);
-    for (size_t i = 0; i < std::min(coeffs.size(), m); ++i) {
+    for (size_t i = 0; i < std::min(coeffs.size(), static_cast<size_t>(m)); ++i) {
         coeffs_[i] = coeffs[i] % p;
     }
     reduceModulo();
