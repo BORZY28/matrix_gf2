@@ -9,13 +9,13 @@
 
 namespace matrix_gf2 {
 
-// Forward declaration
+// Предварительное объявление
 class Matrix;
 
-// Result structure for Gaussian elimination
+// Структура результата метода Гаусса
 struct GaussResult;
 
-// Submatrix information  
+// Информация о подматрице
 struct SubmatrixInfo;
 
 /**
@@ -178,24 +178,24 @@ private:
     std::optional<size_t> findPivot(const Matrix& mat, size_t col, size_t startRow) const;
 };
 
-// Gaussian elimination result structure
+// Структура результата метода Гаусса
 struct GaussResult {
     Matrix matrix;
     size_t rank = 0;
     std::vector<size_t> pivotCols;
     std::vector<std::string> steps;
     
-    // Constructor
+    // Конструктор
     GaussResult(const Matrix& m) : matrix(m), rank(0) {}
 };
 
-// Submatrix information structure
+// Структура с информацией о подматрице
 struct SubmatrixInfo {
     std::vector<size_t> rows;
     std::vector<size_t> cols;
     Matrix submatrix;
     
-    // Constructor
+    // Конструктор
     SubmatrixInfo(const Matrix& m) : submatrix(m) {}
 };
 

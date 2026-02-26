@@ -283,7 +283,7 @@ GaussResult Matrix::reducedRowEchelonForm(bool educational) const {
 }
 
 GaussResult Matrix::gaussElimination(bool forward, bool backward, bool educational) const {
-    GaussResult result(*this);  // Use the constructor
+    GaussResult result(*this);  // Используем конструктор
     
     size_t currentRow = 0;
     

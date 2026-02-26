@@ -254,7 +254,7 @@ GFElement GFElement::inverse() const {
     }
     
     // Расширенный алгоритм Евклида для полиномов
-    // a * x + b * y = gcd(a, b)
+    // a * x + b * y = НОД(a, b)
     // Находим x такой, что this * x = 1 (mod modulus_)
     
     std::vector<uint32_t> r0 = modulus_;
@@ -308,7 +308,7 @@ GFElement GFElement::inverse() const {
             }
         }
         
-        // s2 = s0 - quotient * s1
+        // s2 = s0 - частное * s1
         auto prod = polyMul(quotient, s1);
         std::vector<uint32_t> s2(std::max(s0.size(), prod.size()), 0);
         for (size_t i = 0; i < s0.size(); ++i) {
