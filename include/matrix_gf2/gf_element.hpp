@@ -111,3 +111,4 @@ private:
 } // namespace matrix_gf2
 
 #endif // MATRIX_GF2_GF_ELEMENT_HPP
+
