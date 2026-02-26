@@ -73,6 +73,7 @@ public:
     // Получение характеристики и степени
     uint32_t getP() const { return p_; }
     uint32_t getM() const { return m_; }
+    const std::vector<uint32_t>& getModulus() const { return modulus_; }
     
     // Получение коэффициентов
     const std::vector<uint32_t>& getCoeffs() const { return coeffs_; }
@@ -103,9 +104,7 @@ private:
     std::vector<uint32_t> polyMod(const std::vector<uint32_t>& a,
                                    const std::vector<uint32_t>& b) const;
     
-    // Расширенный алгоритм Евклида для полиномов
-    GFElement extGCD(const GFElement& a, const GFElement& b,
-                     GFElement& x, GFElement& y) const;
+
 };
 
 } // namespace matrix_gf2
