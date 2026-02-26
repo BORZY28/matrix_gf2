@@ -116,8 +116,7 @@ void testGaussElimination() {
     
     // Тест 3: Ранг матрицы
     Matrix B({{1, 0, 1}, {0, 1, 1}, {1, 1, 0}}, 2, 1);
-    size_t rank = B.rank();
-    assert(rank <= 3);
+    assert(B.rank() <= 3);
     
     // Тест 4: Вырожденная матрица
     Matrix C({{1, 1}, {1, 1}}, 2, 1);
@@ -143,16 +142,13 @@ void testMatrixInverse() {
         
         // Проверка A * A^(-1) = I
         Matrix check = A * (*invA);
-        Matrix I_check = Matrix::identity(3, 2, 1);
         
-        bool isIdentity = true;
         for (size_t i = 0; i < 3; ++i) {
             for (size_t j = 0; j < 3; ++j) {
-                if (i == j && !check(i, j).isOne()) isIdentity = false;
-                if (i != j && !check(i, j).isZero()) isIdentity = false;
+                if (i == j) assert(check(i, j).isOne());
+                if (i != j) assert(check(i, j).isZero());
             }
         }
-        assert(isIdentity);
     }
     
     // Тест 3: Вырожденная матрица

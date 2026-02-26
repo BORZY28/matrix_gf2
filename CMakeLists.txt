@@ -39,8 +39,10 @@ target_link_libraries(example_educational matrix_gf2)
 # Тесты (опционально)
 option(BUILD_TESTS "Build tests" ON)
 if(BUILD_TESTS)
+    enable_testing()
     add_executable(test_matrix_gf2 tests/test_matrix_gf2.cpp)
     target_link_libraries(test_matrix_gf2 matrix_gf2)
+    add_test(NAME test_matrix_gf2 COMMAND test_matrix_gf2)
 endif()
 
 # Установка

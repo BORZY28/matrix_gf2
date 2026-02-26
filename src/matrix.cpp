@@ -31,12 +31,13 @@ Matrix::Matrix(const std::vector<std::vector<uint32_t>>& data,
 }
 
 Matrix::Matrix(const std::vector<std::vector<GFElement>>& data)
-    : rows_(data.size()), cols_(data.empty() ? 0 : data[0].size()) {
+    : rows_(data.size()), cols_(data.empty() ? 0 : data[0].size()),
+      p_(2), m_(1), modulus_({1, 1}) {
     
     if (!data.empty() && !data[0].empty()) {
         p_ = data[0][0].getP();
         m_ = data[0][0].getM();
-        modulus_ = {1, 1};  // Значение по умолчанию
+        modulus_ = data[0][0].getModulus();
     }
     
     data_ = data;
