@@ -279,6 +279,52 @@ void testGF4() {
     std::cout << "  ✓ Все тесты GF(4) пройдены\n";
 }
 
+void testGF11sq() {
+    std::cout << "Тестирование операций над GF(11^2)...\n";
+
+    // GF(11^2): p=11, m=2, неприводимый полином x^2 + x + 1 = {1, 1, 1}
+    std::vector<uint32_t> mod = {1, 1, 1};
+
+    // Тест 1: Обратный элемент в GF(11^2)
+    // (5x+8)^{-1} = 10x+5, т.к. (5x+8)*(10x+5) ≡ 1 (mod x^2+x+1) над GF(11)
+    GFElement elem({8, 5}, 11, 2, mod);       // 5x + 8
+    GFElement expected({5, 10}, 11, 2, mod);  // 10x + 5
+    GFElement inv = elem.inverse();
+    assert(inv == expected);
+
+    // Тест 2: Проверка elem * inv == 1
+    GFElement product = elem * inv;
+    assert(product.isOne());
+
+    // Тест 3: Прямой ход Гаусса над матрицей 2x2 над GF(11^2)
+    // Значения 15=4+11=x+4 и 9 выбраны так, что матрица невырожденная
+    // и ведущий элемент первой строки не равен 1 — проверяем нормализацию.
+    // Проверяем, что ведущие элементы равны 1 и ниже них — нули
+    Matrix A({{15, 8}, {5, 9}}, 11, 2, mod);
+    auto result = A.forwardGauss(false);
+    assert(result.rank == 2);
+    for (size_t pivotIdx = 0; pivotIdx < result.pivotCols.size(); ++pivotIdx) {
+        assert(result.matrix(pivotIdx, result.pivotCols[pivotIdx]).isOne());
+        for (size_t row = pivotIdx + 1; row < A.rows(); ++row) {
+            assert(result.matrix(row, result.pivotCols[pivotIdx]).isZero());
+        }
+    }
+
+    // Тест 4: Прямой ход Гаусса (учебный режим) над матрицей 5x5 над GF(11^2) — не должен зависать
+    Matrix B = Matrix::random(5, 5, 11, 2, mod);
+    auto edu = B.forwardGauss(true);
+    assert(!edu.steps.empty());
+    // Проверяем корректность: ведущие элементы == 1, нули ниже
+    for (size_t pivotIdx = 0; pivotIdx < edu.pivotCols.size(); ++pivotIdx) {
+        assert(edu.matrix(pivotIdx, edu.pivotCols[pivotIdx]).isOne());
+        for (size_t row = pivotIdx + 1; row < B.rows(); ++row) {
+            assert(edu.matrix(row, edu.pivotCols[pivotIdx]).isZero());
+        }
+    }
+
+    std::cout << "  ✓ Все тесты GF(11^2) пройдены\n";
+}
+
 int main() {
     std::cout << "\n=== Запуск тестов модуля matrix_gf2 ===\n\n";
     
@@ -290,6 +336,7 @@ int main() {
         testMatrixInverse();
         testGF3();
         testGF4();
+        testGF11sq();
         testSubmatrix();
         testRowOperations();
         

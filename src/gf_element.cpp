@@ -325,6 +325,28 @@ GFElement GFElement::inverse() const {
         s1 = s2;
     }
     
+    // Нормализация: для неприводимого модуля НОД — ненулевая константа из GF(p).
+    // Расширенный алгоритм Евклида даёт s0 * coeffs_ ≡ r0 (mod modulus_),
+    // где r0 = gcd. Чтобы получить истинный обратный элемент, делим s0 на r0.
+    while (r0.size() > 1 && r0.back() == 0) {
+        r0.pop_back();
+    }
+    uint32_t gcdVal = r0[0];
+    if (gcdVal != 1) {
+        // Находим обратный к gcdVal в GF(p)
+        uint32_t gcdInv = 1;
+        for (uint32_t i = 1; i < p_; ++i) {
+            if ((gcdVal * i) % p_ == 1) {
+                gcdInv = i;
+                break;
+            }
+        }
+        // Умножаем коэффициенты s0 на gcdInv
+        for (auto& c : s0) {
+            c = (c * gcdInv) % p_;
+        }
+    }
+    
     return GFElement(s0, p_, m_, modulus_);
 }
 
