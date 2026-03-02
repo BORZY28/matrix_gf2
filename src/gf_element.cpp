@@ -46,8 +46,8 @@ GFElement::GFElement(const std::vector<uint32_t>& coeffs, uint32_t p, uint32_t m
         throw std::invalid_argument("Степень расширения должна быть >= 1");
     }
     
-    coeffs_.resize(m, 0);
-    for (size_t i = 0; i < std::min(coeffs.size(), static_cast<size_t>(m)); ++i) {
+    coeffs_.resize(coeffs.size(), 0);
+    for (size_t i = 0; i < coeffs.size(); ++i) {
         coeffs_[i] = coeffs[i] % p;
     }
     reduceModulo();
@@ -284,6 +284,7 @@ GFElement GFElement::inverse() const {
             }
             
             if (dividend.size() < divisor.size()) break;
+            if (std::all_of(dividend.begin(), dividend.end(), [](uint32_t x) { return x == 0; })) break;
             
             uint32_t lead = divisor.back();
             uint32_t leadInv = 1;

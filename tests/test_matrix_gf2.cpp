@@ -231,6 +231,54 @@ void testRowOperations() {
     std::cout << "  ✓ Все тесты операций со строками пройдены\n";
 }
 
+void testGF4() {
+    std::cout << "Тестирование операций над GF(4) = GF(2^2)...\n";
+    
+    // GF(4): p=2, m=2, неприводимый полином x^2 + x + 1 = {1, 1, 1}
+    std::vector<uint32_t> mod = {1, 1, 1};
+    
+    // Тест 1: Обратный элемент в GF(4)
+    // alpha = x имеет обратный alpha+1 = x+1, т.к. x*(x+1) = x^2+x ≡ 1 (mod x^2+x+1) в GF(2)
+    GFElement alpha({0, 1}, 2, 2, mod);   // x
+    GFElement inv_alpha = alpha.inverse(); // должно быть x+1 = {1, 1}
+    GFElement expected({1, 1}, 2, 2, mod);
+    assert(inv_alpha == expected);
+    
+    // Тест 2: Умножение alpha * inv_alpha = 1
+    GFElement product = alpha * inv_alpha;
+    assert(product.isOne());
+    
+    // Тест 3: Прямой ход Гаусса над GF(4)
+    // value=2 -> alpha=x={0,1}, value=1 -> 1={1,0}
+    // Матрица [ alpha  1 ]  =  [ x    1 ]
+    //         [  1    1 ]     [ 1    1 ]
+    Matrix A({{2, 1}, {1, 1}}, 2, 2, mod);
+    auto result = A.forwardGauss();
+    assert(result.rank == 2);
+    
+    // Тест 4: RREF над GF(4)
+    auto rref = A.reducedRowEchelonForm();
+    assert(rref.rank == 2);
+    // Проверяем, что ведущие элементы равны 1
+    for (size_t pivotIdx = 0; pivotIdx < rref.pivotCols.size(); ++pivotIdx) {
+        assert(rref.matrix(pivotIdx, rref.pivotCols[pivotIdx]).isOne());
+    }
+    
+    // Тест 5: Обратная матрица над GF(4)
+    assert(A.isInvertible());
+    auto invA = A.inverse();
+    assert(invA.has_value());
+    Matrix check = A * (*invA);
+    Matrix I = Matrix::identity(2, 2, 2, mod);
+    assert(check == I);
+    
+    // Тест 6: Учебный режим над GF(4) (не должен зависать)
+    auto edu_result = A.forwardGauss(true);
+    assert(!edu_result.steps.empty());
+    
+    std::cout << "  ✓ Все тесты GF(4) пройдены\n";
+}
+
 int main() {
     std::cout << "\n=== Запуск тестов модуля matrix_gf2 ===\n\n";
     
@@ -241,6 +289,7 @@ int main() {
         testGaussElimination();
         testMatrixInverse();
         testGF3();
+        testGF4();
         testSubmatrix();
         testRowOperations();
         

@@ -172,6 +172,7 @@ private:
     std::vector<std::vector<GFElement>> data_;
     
     // Вспомогательные функции для Гаусса
+    GaussResult gaussEliminationCore(bool forward, bool backward) const;
     GaussResult gaussElimination(bool forward, bool backward, bool educational) const;
     
     // Поиск ведущего элемента
