@@ -46,8 +46,8 @@ GFElement::GFElement(const std::vector<uint32_t>& coeffs, uint32_t p, uint32_t m
         throw std::invalid_argument("Степень расширения должна быть >= 1");
     }
     
-    coeffs_.resize(m, 0);
-    for (size_t i = 0; i < std::min(coeffs.size(), static_cast<size_t>(m)); ++i) {
+    coeffs_.resize(coeffs.size(), 0);
+    for (size_t i = 0; i < coeffs.size(); ++i) {
         coeffs_[i] = coeffs[i] % p;
     }
     reduceModulo();
@@ -284,6 +284,7 @@ GFElement GFElement::inverse() const {
             }
             
             if (dividend.size() < divisor.size()) break;
+            if (std::all_of(dividend.begin(), dividend.end(), [](uint32_t x) { return x == 0; })) break;
             
             uint32_t lead = divisor.back();
             uint32_t leadInv = 1;
@@ -322,6 +323,28 @@ GFElement GFElement::inverse() const {
         r1 = quotient_remainder.second;
         s0 = s1;
         s1 = s2;
+    }
+    
+    // Нормализация: для неприводимого модуля НОД — ненулевая константа из GF(p).
+    // Расширенный алгоритм Евклида даёт s0 * coeffs_ ≡ r0 (mod modulus_),
+    // где r0 = gcd. Чтобы получить истинный обратный элемент, делим s0 на r0.
+    while (r0.size() > 1 && r0.back() == 0) {
+        r0.pop_back();
+    }
+    uint32_t gcdVal = r0[0];
+    if (gcdVal != 1) {
+        // Находим обратный к gcdVal в GF(p)
+        uint32_t gcdInv = 1;
+        for (uint32_t i = 1; i < p_; ++i) {
+            if ((gcdVal * i) % p_ == 1) {
+                gcdInv = i;
+                break;
+            }
+        }
+        // Умножаем коэффициенты s0 на gcdInv
+        for (auto& c : s0) {
+            c = (c * gcdInv) % p_;
+        }
     }
     
     return GFElement(s0, p_, m_, modulus_);

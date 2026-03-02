@@ -282,6 +282,10 @@ GaussResult Matrix::reducedRowEchelonForm(bool educational) const {
 }
 
 GaussResult Matrix::gaussElimination(bool forward, bool backward, bool educational) const {
+    if (!educational) {
+        return gaussEliminationCore(forward, backward);
+    }
+
     GaussResult result(*this);  // Use the constructor
     
     size_t currentRow = 0;
@@ -293,24 +297,20 @@ GaussResult Matrix::gaussElimination(bool forward, bool backward, bool education
             auto pivotRow = findPivot(result.matrix, col, currentRow);
             
             if (!pivotRow.has_value()) {
-                if (educational) {
-                    result.steps.push_back("Столбец " + std::to_string(col) + 
+                result.steps.push_back("Столбец " + std::to_string(col) + 
                                          ": все элементы ниже строки " + 
                                          std::to_string(currentRow) + " равны нулю");
-                }
                 continue;
             }
             
             // Обмен строк
             if (pivotRow.value() != currentRow) {
                 result.matrix.swapRows(currentRow, pivotRow.value());
-                if (educational) {
-                    result.steps.push_back("Шаг: меняем местами строки " + 
+                result.steps.push_back("Шаг: меняем местами строки " + 
                                          std::to_string(currentRow) + " и " + 
                                          std::to_string(pivotRow.value()) +
                                          " (нашли ведущий элемент в столбце " + 
                                          std::to_string(col) + ")");
-                }
             }
             
             result.pivotCols.push_back(col);
@@ -320,13 +320,11 @@ GaussResult Matrix::gaussElimination(bool forward, bool backward, bool education
             if (!pivot.isOne()) {
                 GFElement pivotInv = pivot.inverse();
                 result.matrix.multiplyRow(currentRow, pivotInv);
-                if (educational) {
-                    std::ostringstream oss;
-                    oss << "Шаг: умножаем строку " << currentRow 
-                        << " на " << pivotInv 
-                        << " (делаем ведущий элемент равным 1)";
-                    result.steps.push_back(oss.str());
-                }
+                std::ostringstream oss;
+                oss << "Шаг: умножаем строку " << currentRow 
+                    << " на " << pivotInv 
+                    << " (делаем ведущий элемент равным 1)";
+                result.steps.push_back(oss.str());
             }
             
             // Обнуление элементов ниже ведущего
@@ -334,14 +332,12 @@ GaussResult Matrix::gaussElimination(bool forward, bool backward, bool education
                 if (!result.matrix.data_[row][col].isZero()) {
                     GFElement factor = -result.matrix.data_[row][col];
                     result.matrix.addRow(row, currentRow, factor);
-                    if (educational) {
-                        std::ostringstream oss;
-                        oss << "Шаг: прибавляем к строке " << row 
-                            << " строку " << currentRow 
-                            << ", умноженную на " << factor
-                            << " (обнуляем элемент [" << row << "," << col << "])";
-                        result.steps.push_back(oss.str());
-                    }
+                    std::ostringstream oss;
+                    oss << "Шаг: прибавляем к строке " << row 
+                        << " строку " << currentRow 
+                        << ", умноженную на " << factor
+                        << " (обнуляем элемент [" << row << "," << col << "])";
+                    result.steps.push_back(oss.str());
                 }
             }
             
@@ -349,15 +345,13 @@ GaussResult Matrix::gaussElimination(bool forward, bool backward, bool education
             result.rank++;
         }
         
-        if (educational) {
-            result.steps.push_back("Прямой ход завершён. Ранг матрицы: " + 
+        result.steps.push_back("Прямой ход завершён. Ранг матрицы: " + 
                                  std::to_string(result.rank));
-        }
     }
     
     if (backward && result.rank > 0) {
         // Обратный ход
-        if (educational && forward) {
+        if (forward) {
             result.steps.push_back("Начинаем обратный ход (приведение к RREF)");
         }
         
@@ -385,20 +379,81 @@ GaussResult Matrix::gaussElimination(bool forward, bool backward, bool education
                 if (!result.matrix.data_[row][pivotCol].isZero()) {
                     GFElement factor = -result.matrix.data_[row][pivotCol];
                     result.matrix.addRow(row, pivotRow, factor);
-                    if (educational) {
-                        std::ostringstream oss;
-                        oss << "Шаг: прибавляем к строке " << row 
-                            << " строку " << pivotRow 
-                            << ", умноженную на " << factor
-                            << " (обнуляем элемент [" << row << "," << pivotCol << "])";
-                        result.steps.push_back(oss.str());
+                    std::ostringstream oss;
+                    oss << "Шаг: прибавляем к строке " << row 
+                        << " строку " << pivotRow 
+                        << ", умноженную на " << factor
+                        << " (обнуляем элемент [" << row << "," << pivotCol << "])";
+                    result.steps.push_back(oss.str());
+                }
+            }
+        }
+        
+        result.steps.push_back("Обратный ход завершён. Матрица приведена к RREF");
+    }
+    
+    return result;
+}
+
+GaussResult Matrix::gaussEliminationCore(bool forward, bool backward) const {
+    GaussResult result(*this);
+    
+    size_t currentRow = 0;
+    
+    if (forward) {
+        for (size_t col = 0; col < cols_ && currentRow < rows_; ++col) {
+            auto pivotRow = findPivot(result.matrix, col, currentRow);
+            
+            if (!pivotRow.has_value()) {
+                continue;
+            }
+            
+            if (pivotRow.value() != currentRow) {
+                result.matrix.swapRows(currentRow, pivotRow.value());
+            }
+            
+            result.pivotCols.push_back(col);
+            
+            GFElement pivot = result.matrix.data_[currentRow][col];
+            if (!pivot.isOne()) {
+                result.matrix.multiplyRow(currentRow, pivot.inverse());
+            }
+            
+            for (size_t row = currentRow + 1; row < rows_; ++row) {
+                if (!result.matrix.data_[row][col].isZero()) {
+                    result.matrix.addRow(row, currentRow, -result.matrix.data_[row][col]);
+                }
+            }
+            
+            currentRow++;
+            result.rank++;
+        }
+    }
+    
+    if (backward && result.rank > 0) {
+        if (!forward) {
+            result.pivotCols.clear();
+            for (size_t row = 0; row < rows_; ++row) {
+                for (size_t col = 0; col < cols_; ++col) {
+                    if (!result.matrix.data_[row][col].isZero()) {
+                        result.pivotCols.push_back(col);
+                        result.rank++;
+                        break;
                     }
                 }
             }
         }
         
-        if (educational) {
-            result.steps.push_back("Обратный ход завершён. Матрица приведена к RREF");
+        for (int pivotIdx = static_cast<int>(result.pivotCols.size()) - 1; 
+             pivotIdx >= 0; --pivotIdx) {
+            size_t pivotRow = static_cast<size_t>(pivotIdx);
+            size_t pivotCol = result.pivotCols[pivotIdx];
+            
+            for (int row = static_cast<int>(pivotRow) - 1; row >= 0; --row) {
+                if (!result.matrix.data_[row][pivotCol].isZero()) {
+                    result.matrix.addRow(row, pivotRow, -result.matrix.data_[row][pivotCol]);
+                }
+            }
         }
     }
     
