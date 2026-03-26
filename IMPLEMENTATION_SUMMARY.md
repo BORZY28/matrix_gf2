@@ -38,7 +38,7 @@
 ### Структура файлов
 
 ```
-slava_moduile/
+matrix_gf2/
 ├── include/matrix_gf2/
 │   ├── gf_element.hpp         # Элементы поля Галуа
 │   └── matrix.hpp             # Матрицы над GF(p^m)
