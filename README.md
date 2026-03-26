@@ -1,4 +1,4 @@
-# slava_moduile - Matrix GF(p^m) Library
+#gf_matrix
 
 Библиотека для работы с матрицами над конечными полями Галуа GF(p^m) на C++17.
 
