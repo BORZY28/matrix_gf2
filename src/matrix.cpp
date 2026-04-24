@@ -1,4 +1,4 @@
-#include "../include/matrix_gf2/matrix.hpp"
+#include "..include/matrix_gf2/matrix_gf2.hpp"
 #include <sstream>
 #include <iomanip>
 #include <random>
@@ -6,47 +6,62 @@
 
 namespace matrix_gf2 {
 
-Matrix::Matrix(size_t rows, size_t cols, uint32_t p, uint32_t m,
-               const std::vector<uint32_t>& modulus)
-    : rows_(rows), cols_(cols), p_(p), m_(m), modulus_(modulus) {
+Matrix::Matrix(size_t rows, size_t cols, const GF2& field)
+    : rows_(rows), cols_(cols), field_(field) {
     data_.resize(rows);
     for (auto& row : data_) {
-        row.resize(cols, GFElement(p, m, modulus));
+        row.resize(cols, field_.zero());
     }
 }
 
-Matrix::Matrix(const std::vector<std::vector<uint32_t>>& data,
-               uint32_t p, uint32_t m,
-               const std::vector<uint32_t>& modulus)
+Matrix::Matrix(const std::vector<std::vector<uint64_t>>& data,
+               const GF2& field)
     : rows_(data.size()), cols_(data.empty() ? 0 : data[0].size()),
-      p_(p), m_(m), modulus_(modulus) {
+      field_(field) {
     
     data_.resize(rows_);
     for (size_t i = 0; i < rows_; ++i) {
         data_[i].resize(cols_);
         for (size_t j = 0; j < cols_ && j < data[i].size(); ++j) {
-            data_[i][j] = GFElement(data[i][j], p, m, modulus);
+            data_[i][j] = field_.fromValue(data[i][j]);
         }
     }
 }
 
-Matrix::Matrix(const std::vector<std::vector<GFElement>>& data)
-    : rows_(data.size()), cols_(data.empty() ? 0 : data[0].size()) {
-    
-    if (!data.empty() && !data[0].empty()) {
-        p_ = data[0][0].getP();
-        m_ = data[0][0].getM();
-        modulus_ = {1, 1};  // Значение по умолчанию
+Matrix::Matrix(const std::vector<std::vector<GF2::GF2Element>>& data)
+{
+    rows_ = data.size();
+    cols_ = rows_ ? data[0].size() : 0;
+
+    if (rows_ == 0 || cols_ == 0) {
+        field_ = nullptr;
+        return;
     }
-    
+
+    // Берём поле из первого элемента
+    field_ = &data[0][0].getField();
+
+    // Проверка прямоугольности и одного поля
+    for (size_t i = 0; i < rows_; ++i) {
+        if (data[i].size() != cols_) {
+            throw std::invalid_argument("Matrix is not rectangular");
+        }
+
+        for (size_t j = 0; j < cols_; ++j) {
+            if (&data[i][j].getField() != field_) {
+                throw std::invalid_argument("Elements belong to different fields");
+            }
+        }
+    }
+
+    // Копируем
     data_ = data;
 }
 
-Matrix Matrix::identity(size_t n, uint32_t p, uint32_t m,
-                       const std::vector<uint32_t>& modulus) {
-    Matrix result(n, n, p, m, modulus);
+Matrix Matrix::identity(size_t n, uint32_t p, uint32_t m, const GF2& field) {
+    Matrix result(n, n, field);
     for (size_t i = 0; i < n; ++i) {
-        result.data_[i][i] = GFElement(1, p, m, modulus);
+        result.data_[i][i] = field.fromValue(1);
     }
     return result;
 }
