@@ -1,4 +1,4 @@
-#include "../include/matrix_gf2/matrix.hpp"
+#include "../include/matrix_gf2/matrix_gf2.hpp"
 #include <sstream>
 #include <iomanip>
 #include <random>
@@ -15,78 +15,90 @@ namespace matrix_gf2 {
  * @brief Конструктор нулевой матрицы размера rows x cols
  * 
  * Создаёт матрицу размером rows строк на cols столбцов, заполненную нулевыми
- * элементами поля GF(p^m). Инициализирует параметры поля и внутреннее хранилище.
+ * элементами поля GF2. Инициализирует объект поля и внутреннее хранилище.
+ * 
+ * @param rows Количество строк матрицы
+ * @param cols Количество столбцов матрицы
+ * @param field Объект поля GF2, над которым работает матрица
  */
-Matrix::Matrix(size_t rows, size_t cols, uint32_t p, uint32_t m,
-               const std::vector<uint32_t>& modulus)
-    : rows_(rows), cols_(cols), p_(p), m_(m), modulus_(modulus) {
+Matrix::Matrix(size_t rows, size_t cols, const GF2& field)
+    : rows_(rows), cols_(cols), field_(field) {
     // Выделяем память для всех строк матрицы
     data_.resize(rows);
     // Для каждой строки создаём нулевые элементы поля
     for (auto& row : data_) {
-        row.resize(cols, GFElement(p, m, modulus));
+        row.resize(cols, field_.zero());
     }
 }
 
 /**
- * @brief Конструктор из двумерного массива целых чисел
+ * @brief Конструктор из двумерного массива значений типа uint64_t
  * 
- * Создаёт матрицу из двумерного вектора целых чисел, где каждое число
- * преобразуется в элемент поля GF(p^m). Размеры определяются размерами входного массива.
+ * Создаёт матрицу из двумерного вектора целых чисел (uint64_t), где каждое число
+ * преобразуется в элемент поля GF2. Размеры матрицы определяются размерами входного массива.
+ * Использование uint64_t обеспечивает совместимость с представлением элементов поля GF2.
+ * 
+ * @param data Двумерный вектор значений uint64_t
+ * @param field Объект поля GF2 для преобразования значений
  */
-Matrix::Matrix(const std::vector<std::vector<uint32_t>>& data,
-               uint32_t p, uint32_t m,
-               const std::vector<uint32_t>& modulus)
-    : rows_(data.size()), cols_(data.empty() ? 0 : data[0].size()),
-      p_(p), m_(m), modulus_(modulus) {
+Matrix::Matrix(const std::vector<std::vector<uint64_t>>& data, const GF2& field)
+    : rows_(data.size()), cols_(data.empty() ? 0 : data[0].size()), field_(field) {
     
-    // Выделяем память для строк
+    // Выделяем память для строк матрицы
     data_.resize(rows_);
     for (size_t i = 0; i < rows_; ++i) {
         data_[i].resize(cols_);
-        // Преобразуем каждое целое число в элемент поля
+        // Преобразуем каждое целое число в элемент поля через field_.fromValue()
         for (size_t j = 0; j < cols_ && j < data[i].size(); ++j) {
-            data_[i][j] = GFElement(data[i][j], p, m, modulus);
+            data_[i][j] = field_.fromValue(data[i][j]);
         }
     }
 }
 
 /**
- * @brief Конструктор из двумерного массива элементов поля
+ * @brief Конструктор из двумерного массива элементов поля GF2
  * 
- * Создаёт матрицу прямо из элементов поля GF(p^m). Параметры поля
- * извлекаются из первого элемента.
+ * Создаёт матрицу прямо из элементов поля GF2::GF2Element. Параметры поля
+ * извлекаются из первого элемента матрицы. Это наиболее эффективный способ
+ * создания матрицы, когда элементы уже в правильном формате.
+ * 
+ * @param data Двумерный вектор элементов поля GF2::GF2Element
  */
-Matrix::Matrix(const std::vector<std::vector<GFElement>>& data)
+Matrix::Matrix(const std::vector<std::vector<GF2::GF2Element>>& data)
     : rows_(data.size()), cols_(data.empty() ? 0 : data[0].size()) {
     
-    // Если матрица не пустая, извлекаем параметры поля из первого элемента
+    // Если матрица не пустая, извлекаем объект поля из первого элемент��
     if (!data.empty() && !data[0].empty()) {
-        p_ = data[0][0].getP();
-        m_ = data[0][0].getM();
-        modulus_ = {1, 1};  // Значение по умолчанию для простых полей
+        field_ = data[0][0].field();
+    } else {
+        // Для пустой матрицы создаём поле степени 1 по умолчанию
+        field_ = GF2(1);
     }
     
-    // Копируем данные
+    // Копируем данные матрицы
     data_ = data;
 }
 
 // ============================================================================
-// СТАТИЧЕСКИЕ МЕТОДЫ СОЗДАНИЯ
+// СТАТИЧЕСКИЕ МЕТОДЫ СОЗДАНИЯ СПЕЦИАЛЬНЫХ МАТРИЦ
 // ============================================================================
 
 /**
  * @brief Создаёт единичную матрицу размера n x n
  * 
- * Единичная матрица - это матрица с единицами на главной диагонали
- * и нулями везде остальное. Используется в матричной алгебре.
+ * Единичная матрица - это квадратная матрица с единицами на главной диагонали
+ * и нулями везде остальное. В матричной алгебре обозначается как I или E.
+ * Для любой матрицы A: A * I = I * A = A
+ * 
+ * @param n Размер единичной матрицы (n x n)
+ * @param field Объект поля GF2
+ * @return Единичная матрица размера (n x n) над полем field
  */
-Matrix Matrix::identity(size_t n, uint32_t p, uint32_t m,
-                       const std::vector<uint32_t>& modulus) {
-    Matrix result(n, n, p, m, modulus);
-    // Устанавливаем единицы на диагонали
+Matrix Matrix::identity(size_t n, const GF2& field) {
+    Matrix result(n, n, field);
+    // Устанавливаем единицы на диагонали: [i, i] = 1
     for (size_t i = 0; i < n; ++i) {
-        result.data_[i][i] = GFElement(1, p, m, modulus);
+        result.data_[i][i] = field.one();
     }
     return result;
 }
@@ -94,84 +106,103 @@ Matrix Matrix::identity(size_t n, uint32_t p, uint32_t m,
 /**
  * @brief Создаёт нулевую матрицу размера rows x cols
  * 
- * Нулевая матрица заполнена только нулями поля.
- * По сути - это просто обёртка над обычным конструктором.
+ * Нулевая матрица заполнена только нулями поля. Это нейтральный элемент
+ * для операции сложения матриц: A + O = A для любой матрицы A.
+ * По сути это просто вызов обычного конструктора.
+ * 
+ * @param rows Количество строк
+ * @param cols Количество столбцов
+ * @param field Объект поля GF2
+ * @return Нулевая матрица размера (rows x cols)
  */
-Matrix Matrix::zero(size_t rows, size_t cols, uint32_t p, uint32_t m,
-                   const std::vector<uint32_t>& modulus) {
-    return Matrix(rows, cols, p, m, modulus);
+Matrix Matrix::zero(size_t rows, size_t cols, const GF2& field) {
+    return Matrix(rows, cols, field);
 }
 
 /**
  * @brief Создаёт случайную матрицу размера rows x cols
  * 
- * ��енерирует матрицу со случайными элементами поля GF(p^m).
- * Используется для тестирования и демонстрации.
+ * Генерирует матрицу со случайными элементами поля GF2. Для каждой позиции
+ * матрицы выбирается случайный элемент поля. Используется для тестирования
+ * и демонстрации работы алгоритмов.
+ * 
+ * @param rows Количество строк
+ * @param cols Количество столбцов
+ * @param field Объект поля GF2
+ * @return Случайная матрица размера (rows x cols) с элементами из field
  */
-Matrix Matrix::random(size_t rows, size_t cols, uint32_t p, uint32_t m,
-                     const std::vector<uint32_t>& modulus) {
-    Matrix result(rows, cols, p, m, modulus);
+Matrix Matrix::random(size_t rows, size_t cols, const GF2& field) {
+    Matrix result(rows, cols, field);
     
     // Инициализируем генератор случайных чисел
     std::random_device rd;
-    std::mt19937 gen(rd());
+    std::mt19937_64 gen(rd());
     
-    // Вычисляем максимальное значение элемента в поле (p^m)
-    uint32_t max_val = 1;
-    for (uint32_t i = 0; i < m; ++i) {
-        max_val *= p;
-    }
-    
-    // Создаём распределение на диапазон [0, p^m - 1]
-    std::uniform_int_distribution<uint32_t> dis(0, max_val - 1);
-    
-    // Заполняем матрицу случайными элементами
+    // Заполняем матрицу случайными элементами поля
     for (size_t i = 0; i < rows; ++i) {
         for (size_t j = 0; j < cols; ++j) {
-            result.data_[i][j] = GFElement(dis(gen), p, m, modulus);
+            // gf2::randomElement - функция из gf2.h для генерации случайного элемента
+            result.data_[i][j] = gf2::randomElement(field, gen);
         }
     }
     return result;
 }
 
 // ============================================================================
-// ДОСТУП К ЭЛЕМЕНТАМ
+// ДОСТУП К ЭЛЕМЕНТАМ МАТРИЦЫ
 // ============================================================================
 
 /**
  * @brief Доступ к элементу матрицы по индексам (с проверкой границ)
  * 
- * Возвращает ссылку на элемент с индексами (i, j). Проверяет,
- * что индексы не выходят за границы матрицы.
+ * Возвращает неконстантную ссылку на элемент с индексами (i, j).
+ * Проверяет, что индексы не выходят за границы матрицы.
+ * Использует 0-базированную индексацию.
+ * 
+ * @param i Индекс строки (0 <= i < rows)
+ * @param j Индекс столбца (0 <= j < cols)
+ * @return Ссылка на элемент [i, j]
+ * @throw std::out_of_range если индекс вне границ
  */
-GFElement& Matrix::at(size_t i, size_t j) {
+GF2::GF2Element& Matrix::at(size_t i, size_t j) {
     if (i >= rows_ || j >= cols_) {
-        throw std::out_of_range("Индекс вне границ матрицы");
+        throw std::out_of_range("Matrix index out of bounds");
     }
     return data_[i][j];
 }
 
 /**
  * @brief Константный доступ к элементу матрицы
+ * 
+ * Возвращает константную ссылку на элемент. Используется, когда
+ * матрица константна или когда нужно убедиться, что элемент не будет изменён.
+ * 
+ * @param i Индекс строки
+ * @param j Индекс столбца
+ * @return Константная ссылка на элемент [i, j]
+ * @throw std::out_of_range если индекс вне границ
  */
-const GFElement& Matrix::at(size_t i, size_t j) const {
+const GF2::GF2Element& Matrix::at(size_t i, size_t j) const {
     if (i >= rows_ || j >= cols_) {
-        throw std::out_of_range("Индекс вне границ матрицы");
+        throw std::out_of_range("Matrix index out of bounds");
     }
     return data_[i][j];
 }
 
 /**
- * @brief Оператор доступа с проверкой границ
+ * @brief Оператор доступа к элементу матрицы (неконстантный)
+ * 
+ * Просто вызывает at(i, j). Позволяет использовать синтаксис матрица(i, j)
+ * вместо матрица.at(i, j).
  */
-GFElement& Matrix::operator()(size_t i, size_t j) {
+GF2::GF2Element& Matrix::operator()(size_t i, size_t j) {
     return at(i, j);
 }
 
 /**
- * @brief Константный оператор доступа
+ * @brief Оператор доступа к элементу матрицы (константный)
  */
-const GFElement& Matrix::operator()(size_t i, size_t j) const {
+const GF2::GF2Element& Matrix::operator()(size_t i, size_t j) const {
     return at(i, j);
 }
 
@@ -182,17 +213,22 @@ const GFElement& Matrix::operator()(size_t i, size_t j) const {
 /**
  * @brief Сложение двух матриц
  * 
- * Складывает соответствующие элементы матриц по правилам поля.
+ * Складывает соответствующие элементы матриц по правилам поля GF2.
+ * В поле GF(2) сложение эквивалентно операции XOR для элементов.
  * Матрицы должны быть одинакового размера.
+ * 
+ * @param other Вторая матрица для сложения
+ * @return Новая матрица, содержащая сумму элементов
+ * @throw std::invalid_argument если размеры матриц не совпадают
  */
 Matrix Matrix::operator+(const Matrix& other) const {
     // Проверяем совместимость размеров
     if (rows_ != other.rows_ || cols_ != other.cols_) {
-        throw std::invalid_argument("Размеры матриц не совпадают");
+        throw std::invalid_argument("Matrix dimensions do not match");
     }
     
     // Создаём результирующую матрицу того же размера
-    Matrix result(rows_, cols_, p_, m_, modulus_);
+    Matrix result(rows_, cols_, field_);
     
     // Складываем элементы
     for (size_t i = 0; i < rows_; ++i) {
@@ -206,15 +242,20 @@ Matrix Matrix::operator+(const Matrix& other) const {
 /**
  * @brief Вычитание двух матриц
  * 
- * Вычитает соответствующие элементы матриц по правилам поля.
- * Матрицы должны бы��ь одинакового размера.
+ * Вычитает соответствующие элементы матриц по правилам поля GF2.
+ * В поле GF(2) вычитание эквивалентно сложению (так как -a = a в GF(2)).
+ * Матрицы должны быть одинакового размера.
+ * 
+ * @param other Вторая матрица
+ * @return Новая матрица, содержащая разность элементов
+ * @throw std::invalid_argument если размеры матриц не совпадают
  */
 Matrix Matrix::operator-(const Matrix& other) const {
     if (rows_ != other.rows_ || cols_ != other.cols_) {
-        throw std::invalid_argument("Размеры матриц не совпадают");
+        throw std::invalid_argument("Matrix dimensions do not match");
     }
     
-    Matrix result(rows_, cols_, p_, m_, modulus_);
+    Matrix result(rows_, cols_, field_);
     for (size_t i = 0; i < rows_; ++i) {
         for (size_t j = 0; j < cols_; ++j) {
             result.data_[i][j] = data_[i][j] - other.data_[i][j];
@@ -227,27 +268,32 @@ Matrix Matrix::operator-(const Matrix& other) const {
  * @brief Умножение двух матриц
  * 
  * Выполняет стандартное матричное умножение A * B.
- * Количество столбцов A должно равняться количеству строк B.
+ * Количество столбцов первой матрицы должно равняться количеству строк второй матрицы.
  * Результат имеет размер (rows_A x cols_B).
+ * Элемент [i, j] результата = скалярное произведение i-й строки A на j-й столбец B.
+ * 
+ * @param other Вторая матрица для умножения
+ * @return Новая матрица размера (rows x other.cols)
+ * @throw std::invalid_argument если cols != other.rows
  */
 Matrix Matrix::operator*(const Matrix& other) const {
     // Проверяем совместимость для умножения
     if (cols_ != other.rows_) {
-        throw std::invalid_argument("Несовместимые размеры для умножения матриц");
+        throw std::invalid_argument("Incompatible matrix dimensions for multiplication");
     }
     
     // Результат имеет размер (rows_ x other.cols_)
-    Matrix result(rows_, other.cols_, p_, m_, modulus_);
+    Matrix result(rows_, other.cols_, field_);
     
-    // Выч��сляем каждый элемент результата
+    // Вычисляем каждый элемент результата
     for (size_t i = 0; i < rows_; ++i) {
         for (size_t j = 0; j < other.cols_; ++j) {
             // Инициализируем сумму нулём
-            GFElement sum(p_, m_, modulus_);
+            GF2::GF2Element sum = field_.zero();
             
             // Вычисляем скалярное произведение строки i на столбец j
             for (size_t k = 0; k < cols_; ++k) {
-                sum += data_[i][k] * other.data_[k][j];
+                sum = sum + (data_[i][k] * other.data_[k][j]);
             }
             result.data_[i][j] = sum;
         }
@@ -257,6 +303,12 @@ Matrix Matrix::operator*(const Matrix& other) const {
 
 /**
  * @brief Сложение с присваиванием (+=)
+ * 
+ * Эквивалентно this = *this + other
+ * Модифицирует текущую матрицу на месте.
+ * 
+ * @param other Вторая матрица
+ * @return Ссылка на изменённую матрицу
  */
 Matrix& Matrix::operator+=(const Matrix& other) {
     *this = *this + other;
@@ -265,6 +317,12 @@ Matrix& Matrix::operator+=(const Matrix& other) {
 
 /**
  * @brief Вычитание с присваиванием (-=)
+ * 
+ * Эквивалентно this = *this - other
+ * Модифицирует текущую матрицу на месте.
+ * 
+ * @param other Вторая матрица
+ * @return Ссылка на изменённую матрицу
  */
 Matrix& Matrix::operator-=(const Matrix& other) {
     *this = *this - other;
@@ -278,10 +336,14 @@ Matrix& Matrix::operator-=(const Matrix& other) {
 /**
  * @brief Умножение матрицы на элемент поля (скаляр)
  * 
- * Умножает каждый элемент матрицы на заданный скаляр.
+ * Умножает каждый элемент матрицы на заданный скаляр (элемент поля).
+ * Используется для масштабирования матрицы.
+ * 
+ * @param scalar Элемент поля, на который умножать
+ * @return Новая матрица, где каждый элемент умножен на scalar
  */
-Matrix Matrix::operator*(const GFElement& scalar) const {
-    Matrix result(rows_, cols_, p_, m_, modulus_);
+Matrix Matrix::operator*(const GF2::GF2Element& scalar) const {
+    Matrix result(rows_, cols_, field_);
     for (size_t i = 0; i < rows_; ++i) {
         for (size_t j = 0; j < cols_; ++j) {
             result.data_[i][j] = data_[i][j] * scalar;
@@ -292,8 +354,13 @@ Matrix Matrix::operator*(const GFElement& scalar) const {
 
 /**
  * @brief Умножение матрицы на скаляр с присваиванием (*=)
+ * 
+ * Модифицирует текущую матрицу на месте.
+ * 
+ * @param scalar Элемент поля
+ * @return Ссылка на изменённую матрицу
  */
-Matrix& Matrix::operator*=(const GFElement& scalar) {
+Matrix& Matrix::operator*=(const GF2::GF2Element& scalar) {
     *this = *this * scalar;
     return *this;
 }
@@ -306,23 +373,28 @@ Matrix& Matrix::operator*=(const GFElement& scalar) {
  * @brief Умножение матрицы на вектор-столбец
  * 
  * Вычисляет произведение матрицы A на вектор v: A * v.
- * Размер вектора должен равняться числу столбцов матрицы.
- * Результат - вектор размера (rows_ x 1).
+ * Размер век��ора должен равняться числу столбцов матрицы.
+ * Результат - вектор размера (rows x 1).
+ * Элемент i результата = скалярное произведение i-й строки матрицы на вектор.
+ * 
+ * @param vec Вектор для умножения (размер должен быть = cols)
+ * @return Новый вектор размера rows с результатом умножения
+ * @throw std::invalid_argument если размер вектора != cols
  */
-std::vector<GFElement> Matrix::operator*(const std::vector<GFElement>& vec) const {
+std::vector<GF2::GF2Element> Matrix::operator*(const std::vector<GF2::GF2Element>& vec) const {
     // Проверяем совместимость
     if (vec.size() != cols_) {
-        throw std::invalid_argument("Размер вектора не совпадает с количеством столбцов");
+        throw std::invalid_argument("Vector size does not match matrix columns");
     }
     
     // Результат - вектор размера rows_
-    std::vector<GFElement> result(rows_, GFElement(p_, m_, modulus_));
+    std::vector<GF2::GF2Element> result(rows_, field_.zero());
     
     // Для каждой строки матрицы вычисляем скалярное произведение на вектор
     for (size_t i = 0; i < rows_; ++i) {
-        GFElement sum(p_, m_, modulus_);
+        GF2::GF2Element sum = field_.zero();
         for (size_t j = 0; j < cols_; ++j) {
-            sum += data_[i][j] * vec[j];
+            sum = sum + (data_[i][j] * vec[j]);
         }
         result[i] = sum;
     }
@@ -338,10 +410,13 @@ std::vector<GFElement> Matrix::operator*(const std::vector<GFElement>& vec) cons
  * 
  * Возвращает новую матрицу, где строки стали столбцами и наоборот.
  * Если A имеет размер (m x n), то A^T имеет размер (n x m).
+ * Элемент [i, j] транспонированной матрицы = элемент [j, i] исходной матрицы.
+ * 
+ * @return Новая матрица размера (cols x rows)
  */
 Matrix Matrix::transpose() const {
-    // Резу��ьтат имеет размер (cols_ x rows_)
-    Matrix result(cols_, rows_, p_, m_, modulus_);
+    // Результат имеет размер (cols_ x rows_)
+    Matrix result(cols_, rows_, field_);
     
     // Копируем элементы с транспонированием
     for (size_t i = 0; i < rows_; ++i) {
@@ -353,24 +428,36 @@ Matrix Matrix::transpose() const {
 }
 
 /**
- * @brief Получить строку матрицы по индексу
+ * @brief Получить строку матрицы по ин��ексу
+ * 
+ * Возвращает копию i-й строки матрицы в виде вектора.
+ * 
+ * @param i Индекс строки
+ * @return Вектор элементов i-й строки
+ * @throw std::out_of_range если индекс вне границ
  */
-std::vector<GFElement> Matrix::getRow(size_t i) const {
+std::vector<GF2::GF2Element> Matrix::getRow(size_t i) const {
     if (i >= rows_) {
-        throw std::out_of_range("Индекс строки вне границ");
+        throw std::out_of_range("Row index out of bounds");
     }
     return data_[i];
 }
 
 /**
  * @brief Получить столбец матрицы по индексу
+ * 
+ * Возвращает копию j-го столбца матрицы в виде вектора.
+ * 
+ * @param j Индекс столбца
+ * @return Вектор элементов j-го столбца
+ * @throw std::out_of_range если индекс вне границ
  */
-std::vector<GFElement> Matrix::getCol(size_t j) const {
+std::vector<GF2::GF2Element> Matrix::getCol(size_t j) const {
     if (j >= cols_) {
-        throw std::out_of_range("Индекс столбца вне границ");
+        throw std::out_of_range("Column index out of bounds");
     }
     // Собираем элементы столбца в вектор
-    std::vector<GFElement> col(rows_);
+    std::vector<GF2::GF2Element> col(rows_);
     for (size_t i = 0; i < rows_; ++i) {
         col[i] = data_[i][j];
     }
@@ -379,26 +466,42 @@ std::vector<GFElement> Matrix::getCol(size_t j) const {
 
 /**
  * @brief Установить строку матрицы
+ * 
+ * Заменяет i-ю строку матрицы новой строкой из вектора.
+ * Размер вектора должен совпадать с количеством столбцов.
+ * 
+ * @param i Индекс строки
+ * @param row Новая строка (вектор элементов)
+ * @throw std::out_of_range если индекс вне границ
+ * @throw std::invalid_argument если размер не совпадает
  */
-void Matrix::setRow(size_t i, const std::vector<GFElement>& row) {
+void Matrix::setRow(size_t i, const std::vector<GF2::GF2Element>& row) {
     if (i >= rows_) {
-        throw std::out_of_range("Индекс строки вне границ");
+        throw std::out_of_range("Row index out of bounds");
     }
     if (row.size() != cols_) {
-        throw std::invalid_argument("Размер строки не совпадает");
+        throw std::invalid_argument("Row size does not match");
     }
     data_[i] = row;
 }
 
 /**
  * @brief Установить столбец матрицы
+ * 
+ * Заменяет j-й столбец матрицы новым столбцом из вектора.
+ * Размер вектора должен совпадать с количеством строк.
+ * 
+ * @param j Индекс столбца
+ * @param col Новый столбец (вектор элементов)
+ * @throw std::out_of_range если индекс вне границ
+ * @throw std::invalid_argument если размер не совпадает
  */
-void Matrix::setCol(size_t j, const std::vector<GFElement>& col) {
+void Matrix::setCol(size_t j, const std::vector<GF2::GF2Element>& col) {
     if (j >= cols_) {
-        throw std::out_of_range("Индекс столбца вне границ");
+        throw std::out_of_range("Column index out of bounds");
     }
     if (col.size() != rows_) {
-        throw std::invalid_argument("Размер столбца не совпадает");
+        throw std::invalid_argument("Column size does not match");
     }
     // Устанавливаем элементы столбца
     for (size_t i = 0; i < rows_; ++i) {
@@ -408,57 +511,85 @@ void Matrix::setCol(size_t j, const std::vector<GFElement>& col) {
 
 /**
  * @brief Обмен двух строк матрицы местами
+ * 
+ * Элементарное преобразование строк: строки i и j меняются местами.
+ * Используется в методе Гаусса для выбора ведущего элемента.
+ * 
+ * @param i Индекс первой строки
+ * @param j Индекс второй строки
+ * @throw std::out_of_range если индекс вне границ
  */
 void Matrix::swapRows(size_t i, size_t j) {
     if (i >= rows_ || j >= rows_) {
-        throw std::out_of_range("Индекс строки вне границ");
+        throw std::out_of_range("Row index out of bounds");
     }
     std::swap(data_[i], data_[j]);
 }
 
 // ============================================================================
-// ЭЛЕМЕНТАРНЫЕ ПРЕОБРАЗОВАНИЯ СТР��К
+// ЭЛЕМЕНТАРНЫЕ ПРЕ��БРАЗОВАНИЯ СТРОК
 // ============================================================================
 
 /**
- * @brief Умножить строку на скаляр (элементарное преобразование)
+ * @brief Умножить строку на скаляр
  * 
- * Элементарное преобразование: каждый элемент строки i умножается на скаляр.
+ * Элементарное преобразование типа R_i := c * R_i.
+ * Каждый элемент строки i умножается на скаляр c.
+ * Используется в методе Гаусса для нормализации ведущего элемента.
+ * 
+ * @param i Индекс строки
+ * @param scalar Элемент поля, на который умножать
+ * @throw std::out_of_range если индекс вне границ
  */
-void Matrix::multiplyRow(size_t i, const GFElement& scalar) {
+void Matrix::multiplyRow(size_t i, const GF2::GF2Element& scalar) {
     if (i >= rows_) {
-        throw std::out_of_range("Индекс строки вне границ");
+        throw std::out_of_range("Row index out of bounds");
     }
     for (size_t j = 0; j < cols_; ++j) {
-        data_[i][j] *= scalar;
+        data_[i][j] = data_[i][j] * scalar;
     }
 }
 
 /**
  * @brief Прибавить к строке другую строку, умноженную на скаляр
  * 
- * Элементарное преобразование: к строке dest прибавляется строка src,
- * умноженная на скаляр. В формуле: R_dest := R_dest + scalar * R_src
+ * Элементарное преобразование типа R_dest := R_dest + c * R_src.
+ * К строке dest прибавляется строка src, умноженная на скаляр.
+ * Это основное преобразован��е, используемое в методе Гаусса для обнуления элементов.
+ * 
+ * @param dest Индекс строки, к которой прибавляем
+ * @param src Индекс строки, которую прибавляем
+ * @param scalar Элемент поля, на который умножать строку src
+ * @throw std::out_of_range если индекс вне границ
  */
-void Matrix::addRow(size_t dest, size_t src, const GFElement& scalar) {
+void Matrix::addRow(size_t dest, size_t src, const GF2::GF2Element& scalar) {
     if (dest >= rows_ || src >= rows_) {
-        throw std::out_of_range("Индекс строки вне границ");
+        throw std::out_of_range("Row index out of bounds");
     }
     for (size_t j = 0; j < cols_; ++j) {
-        data_[dest][j] += data_[src][j] * scalar;
+        data_[dest][j] = data_[dest][j] + (data_[src][j] * scalar);
     }
 }
 
 // ============================================================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ГАУССА
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ГАУССОВА ИСКЛЮЧЕНИЯ
 // ============================================================================
 
 /**
- * @brief Найти ведущий элемент (pivot) в столбце, начиная с заданной строки
+ * @brief Найти ведущий элемент (pivot) в столбце
  * 
  * Ведущий элемент - это первый ненулевой элемент в столбце col,
- * начиная со строки startRow. Используется в методе Гаусса.
- * Возвращает индекс строки или nullopt, если ведущий элемент не найден.
+ * начиная со строки startRow и ниже. Используется в методе Га��сса.
+ * 
+ * Алгоритм:
+ *  1. Ищем в столбце col, начиная со строки startRow
+ *  2. Возвращаем индекс первого ненулевого элемента
+ *  3. Если нет ненулевых элементов, возвращаем nullopt
+ * 
+ * @param mat Матрица для поиска
+ * @param col Индекс столбца
+ * @param startRow Начальная строка для поиска
+ * @return Индекс строки с ведущим элементом или nullopt
  */
 std::optional<size_t> Matrix::findPivot(const Matrix& mat, size_t col, size_t startRow) const {
     for (size_t i = startRow; i < mat.rows_; ++i) {
@@ -477,8 +608,12 @@ std::optional<size_t> Matrix::findPivot(const Matrix& mat, size_t col, size_t st
 /**
  * @brief Прямой ход Гаусса (приведение к ступенчатому виду)
  * 
- * Преобразует матрицу к ступенчатому виду (row echelon form).
+ * Прео��разует матрицу к ступенчатому виду (row echelon form).
+ * Результат: матрица имеет вид лестницы с ведущими элементами на диагонали.
  * Это подготовительный этап для других методов исключения.
+ * 
+ * @param educational Если true, выводит подробное объяснение каждого шага
+ * @return GaussResult с преобразованной матрицей и информацией о процессе
  */
 GaussResult Matrix::forwardGauss(bool educational) const {
     return gaussElimination(true, false, educational);
@@ -488,7 +623,11 @@ GaussResult Matrix::forwardGauss(bool educational) const {
  * @brief Обратный ход Гаусса (приведение к систематическому виду)
  * 
  * Преобразует матрицу к систематическому виду (back substitution).
- * Обычно выполняется после прямого хода.
+ * Обычно выполняется после прямого хода для завершения процесса элиминации.
+ * Используется в методе Гаусса-Жордана.
+ * 
+ * @param educational Если true, выводит подробное объяснение каждого шага
+ * @return GaussResult с преобразованной матрицей и информацией о процессе
  */
 GaussResult Matrix::backwardGauss(bool educational) const {
     return gaussElimination(false, true, educational);
@@ -499,10 +638,20 @@ GaussResult Matrix::backwardGauss(bool educational) const {
  * 
  * Приводит матрицу к приведённому ступенчатому виду (reduced row echelon form).
  * Это сочетание прямого и обратного ходов Гаусса.
- * RREF - это форма, где:
- *  1. На главной диагонали стоят единицы
- *  2. Остальн��е элементы в столбцах с единицами - это нули
+ * 
+ * RREF имеет свойства:
+ *  1. На главной диагонали стоят единицы (ведущие элементы)
+ *  2. Остальные элементы в столбцах с единицами - это нули
  *  3. Строки отсортированы по положению ведущих элементов
+ *  4. Это уникальная форма матрицы
+ * 
+ * RREF используется для:
+ *  - Вычисления ранга матрицы
+ *  - Проверки обратимости
+ *  - Нахождения обратной матрицы методом Гаусса-Жордана
+ * 
+ * @param educational Если true, выводит подробное объяснение каждого шага
+ * @return GaussResult с преобразованно�� матрицей и информацией о процессе
  */
 GaussResult Matrix::reducedRowEchelonForm(bool educational) const {
     return gaussElimination(true, true, educational);
@@ -516,17 +665,29 @@ GaussResult Matrix::reducedRowEchelonForm(bool educational) const {
  * @brief Полная реализация гауссова исключения с образовательным режимом
  * 
  * Это главный метод для гауссова исключения.
+ * 
  * Параметры:
  *  - forward: выполнять ли прямой ход (приведение к ступенчатому виду)
  *  - backward: выполнять ли обратный ход (приведение к RREF)
  *  - educational: выводить ли подробное объяснение каждого шага
  * 
  * Алгоритм прямого хода (forward):
- *  1. Для каждого столбца:
- *     а) Найти ведущий (ненулевой) э��емент
- *     б) Переместить его на диагональ (обмен строк)
- *     в) Нормализовать: сделать ведущий элемент равным 1
- *     г) Обнулить все элементы ниже ведущего
+ *  1. Для каждого столбца, начиная с первого:
+ *     а) Найти ведущий (ненулевой) элемент в этом столбце
+ *     б) Если не найден, п��рейти к следующему столбцу
+ *     в) Переместить строку с ведущим элементом на диагональ (обмен строк)
+ *     г) Нормализовать: сделать ведущий элемент равным 1 (умножение строки на обратный элемент)
+ *     д) Обнулить все элементы ниже ведущего (исключение)
+ * 
+ * Алгоритм обратного хода (backward):
+ *  1. Для каждого ведущего элемента, начиная снизу:
+ *     а) Обнулить все элементы ВЫШЕ этого ведущего элемента
+ *     б) Это завершает процесс приведения к RREF
+ * 
+ * @param forward Выполнять прямой ход
+ * @param backward Выполнять обратный ход
+ * @param educational Выводить подробные объяснения шагов
+ * @return GaussResult с преобразованной матрицей, рангом и шагами
  */
 GaussResult Matrix::gaussElimination(bool forward, bool backward, bool educational) const {
     // Если образовательный режим отключен, используем более быстрый вариант
@@ -540,56 +701,51 @@ GaussResult Matrix::gaussElimination(bool forward, bool backward, bool education
     
     // ========== ПРЯМОЙ ХОД ==========
     if (forward) {
-        // Проходим по каждому столбцу
+        // Проходим по каждому столбцу слева направо
         for (size_t col = 0; col < cols_ && currentRow < rows_; ++col) {
-            // Ищем ведущий элемент в этом столбце
+            // Ищем ведущий элемент в этом столбце, начиная с currentRow
             auto pivotRow = findPivot(result.matrix, col, currentRow);
             
             // Если ведущий элемент не найден, переходим к следующему столбцу
             if (!pivotRow.has_value()) {
-                result.steps.push_back("Столбец " + std::to_string(col) + 
-                                         ": все элементы ниже строки " + 
-                                         std::to_string(currentRow) + " равны нулю");
+                result.steps.push_back("Column " + std::to_string(col) + 
+                                     ": all elements below row " + 
+                                     std::to_string(currentRow) + " are zero");
                 continue;
             }
             
             // Если ведущий элемент не на текущей строке, обмениваем строки
             if (pivotRow.value() != currentRow) {
                 result.matrix.swapRows(currentRow, pivotRow.value());
-                result.steps.push_back("Шаг: меняем местами строки " + 
-                                         std::to_string(currentRow) + " и " + 
-                                         std::to_string(pivotRow.value()) +
-                                         " (нашли ведущий элемент в столбце " + 
-                                         std::to_string(col) + ")");
+                result.steps.push_back("Swap rows " + 
+                                     std::to_string(currentRow) + " and " + 
+                                     std::to_string(pivotRow.value()) +
+                                     " (found pivot in column " + 
+                                     std::to_string(col) + ")");
             }
             
             // Запоминаем столбец с ведущим элементом
             result.pivotCols.push_back(col);
             
             // Нормализуем строку: делаем ведущий элемент равным 1
-            GFElement pivot = result.matrix.data_[currentRow][col];
-            if (!pivot.isOne()) {
-                GFElement pivotInv = pivot.inverse();
+            GF2::GF2Element pivot = result.matrix.data_[currentRow][col];
+            if (pivot != result.matrix.field_.one()) {
+                GF2::GF2Element pivotInv = pivot.inverse();
                 result.matrix.multiplyRow(currentRow, pivotInv);
-                std::ostringstream oss;
-                oss << "Шаг: умножаем строку " << currentRow 
-                    << " на " << pivotInv 
-                    << " (делаем ведущий элемент равным 1)";
-                result.steps.push_back(oss.str());
+                result.steps.push_back("Multiply row " + std::to_string(currentRow) + 
+                                     " by inverse of pivot (make pivot equal 1)");
             }
             
             // Обнуляем все элементы НИЖЕ ведущего
             for (size_t row = currentRow + 1; row < rows_; ++row) {
                 if (!result.matrix.data_[row][col].isZero()) {
                     // Вычисляем множитель для обнуления элемента
-                    GFElement factor = -result.matrix.data_[row][col];
+                    GF2::GF2Element factor = -(result.matrix.data_[row][col]);
                     result.matrix.addRow(row, currentRow, factor);
-                    std::ostringstream oss;
-                    oss << "Шаг: прибавляем к строке " << row 
-                        << " строку " << currentRow 
-                        << ", умноженную на " << factor
-                        << " (обнуляем элемент [" << row << "," << col << "])";
-                    result.steps.push_back(oss.str());
+                    result.steps.push_back("Add row " + std::to_string(currentRow) + 
+                                         " to row " + std::to_string(row) +
+                                         " (eliminate element [" + std::to_string(row) + "," + 
+                                         std::to_string(col) + "])");
                 }
             }
             
@@ -597,15 +753,15 @@ GaussResult Matrix::gaussElimination(bool forward, bool backward, bool education
             result.rank++;
         }
         
-        result.steps.push_back("Прямой ход завершён. Ранг матрицы: " + 
-                                 std::to_string(result.rank));
+        result.steps.push_back("Forward elimination complete. Matrix rank: " + 
+                             std::to_string(result.rank));
     }
     
     // ========== ОБРАТНЫЙ ХОД ==========
     if (backward && result.rank > 0) {
         // Добавляем информацию о начале обратного хода
         if (forward) {
-            result.steps.push_back("Начинаем обратный ход (приведение к RREF)");
+            result.steps.push_back("Starting backward elimination (RREF)");
         }
         
         // Если не был выполнен прямой ход, нужно найти ведущие столбцы
@@ -632,19 +788,17 @@ GaussResult Matrix::gaussElimination(bool forward, bool backward, bool education
             for (int row = static_cast<int>(pivotRow) - 1; row >= 0; --row) {
                 if (!result.matrix.data_[row][pivotCol].isZero()) {
                     // Вычисляем множитель для обнуления элемента
-                    GFElement factor = -result.matrix.data_[row][pivotCol];
+                    GF2::GF2Element factor = -(result.matrix.data_[row][pivotCol]);
                     result.matrix.addRow(row, pivotRow, factor);
-                    std::ostringstream oss;
-                    oss << "Шаг: прибавляем к строке " << row 
-                        << " строку " << pivotRow 
-                        << ", умноженную на " << factor
-                        << " (обнуляем элемент [" << row << "," << pivotCol << "])";
-                    result.steps.push_back(oss.str());
+                    result.steps.push_back("Add row " + std::to_string(pivotRow) + 
+                                         " to row " + std::to_string(row) +
+                                         " (eliminate element [" + std::to_string(row) + "," + 
+                                         std::to_string(pivotCol) + "])");
                 }
             }
         }
         
-        result.steps.push_back("Обратный ход завершён. Матрица приведена к RREF");
+        result.steps.push_back("Backward elimination complete. Matrix in RREF");
     }
     
     return result;
@@ -657,8 +811,13 @@ GaussResult Matrix::gaussElimination(bool forward, bool backward, bool education
 /**
  * @brief Быстрая реализация гауссова исключения (без вывода шагов)
  * 
- * Выполняет гауссово исключение без подробного объяснения.
- * Используется, когда нужна скорость вычисления.
+ * Выполняет гауссово исключение без подробного объяснения каждого шага.
+ * Используется, когда нужна только скорость вычисления и не требуется образовательный вывод.
+ * Принципиально алгоритм такой же, но без построения списка шагов.
+ * 
+ * @param forward Выполнять прямой ход
+ * @param backward Выполнять обратный ход
+ * @return GaussResult с преобразованной матрицей и рангом (без шагов)
  */
 GaussResult Matrix::gaussEliminationCore(bool forward, bool backward) const {
     GaussResult result(*this);
@@ -682,15 +841,15 @@ GaussResult Matrix::gaussEliminationCore(bool forward, bool backward) const {
             result.pivotCols.push_back(col);
             
             // Нормализуем ведущий элемент
-            GFElement pivot = result.matrix.data_[currentRow][col];
-            if (!pivot.isOne()) {
+            GF2::GF2Element pivot = result.matrix.data_[currentRow][col];
+            if (pivot != result.matrix.field_.one()) {
                 result.matrix.multiplyRow(currentRow, pivot.inverse());
             }
             
             // Обнуляем элементы ниже
             for (size_t row = currentRow + 1; row < rows_; ++row) {
                 if (!result.matrix.data_[row][col].isZero()) {
-                    result.matrix.addRow(row, currentRow, -result.matrix.data_[row][col]);
+                    result.matrix.addRow(row, currentRow, -(result.matrix.data_[row][col]));
                 }
             }
             
@@ -723,7 +882,7 @@ GaussResult Matrix::gaussEliminationCore(bool forward, bool backward) const {
             
             for (int row = static_cast<int>(pivotRow) - 1; row >= 0; --row) {
                 if (!result.matrix.data_[row][pivotCol].isZero()) {
-                    result.matrix.addRow(row, pivotRow, -result.matrix.data_[row][pivotCol]);
+                    result.matrix.addRow(row, pivotRow, -(result.matrix.data_[row][pivotCol]));
                 }
             }
         }
@@ -741,6 +900,13 @@ GaussResult Matrix::gaussEliminationCore(bool forward, bool backward) const {
  * 
  * Ранг матрицы - это количество линейно независимых строк (или столбцов).
  * Эквивалентно количеству ведущих элементов в ступенчатом виде.
+ * 
+ * Используется для:
+ *  - Определения размерности пространства строк/столбцов
+ *  - Проверки обратимости матрицы
+ *  - Анализа решаемости системы линейных уравнений
+ * 
+ * @return Ранг матрицы (целое число от 0 до min(rows, cols))
  */
 size_t Matrix::rank() const {
     // Приводим матрицу к ступенчатому виду и возвращаем ранг
@@ -753,7 +919,11 @@ size_t Matrix::rank() const {
  * 
  * Матрица обратима (имеет обратную) тогда и только тогда, когда:
  *  1. Она квадратная (rows == cols)
- *  2. Её ранг равен её размеру (ранг == количество строк)
+ *  2. Её ранг равен её размеру (ранг == количество строк == количество столбцов)
+ * 
+ * Эквивалентно: матрица имеет полный ранг.
+ * 
+ * @return true если матрица обратима, false иначе
  */
 bool Matrix::isInvertible() const {
     // Квадратная ли матрица?
@@ -769,29 +939,34 @@ bool Matrix::isInvertible() const {
 // ============================================================================
 
 /**
- * @brief Вычисление обратной матрицы
+ * @brief Вычисление обратной матрицы методом Гаусса-Жордана
  * 
- * Использует метод Гаусса-Жордана на расширенной матрице [A | I].
+ * Использует метод расширенной матрицы на расширенной матрице [A | I].
  * Если матрица обратима, в результате получаем [I | A^(-1)].
  * 
  * Алгоритм:
- *  1. Создаём расширенную матрицу [A | I]
- *  2. Приводим к RREF методом Гаусса-Жордана
- *  3. Если слева получилась единичная матрица, то справа - обратная
- *  4. Иначе матрица необратима
+ *  1. Создаём расширенную матрицу [A | I], где I - единичная матрица
+ *  2. Приводим всю матрицу к RREF методом Гаусса-Жордана
+ *  3. Если слева получилась единичная матрица, то справа стоит обратная матрица
+ *  4. Иначе матрица необратима (ранг < n)
+ * 
+ * Сложность: O(n^3)
+ * 
+ * @param educational Если true, выводит подробное объяснение процесса
+ * @return Обратная матрица или nullopt, если матрица необратима
  */
 std::optional<Matrix> Matrix::inverse(bool educational) const {
     // Проверяем, что матрица квадратная
     if (rows_ != cols_) {
         if (educational) {
-            std::cout << "Матрица не квадратная, обратная не существует\n";
+            std::cout << "Matrix is not square, inverse does not exist\n";
         }
         return std::nullopt;
     }
     
     // Создаём расширенную матрицу [A | I]
     // Левая половина - исходная матрица, правая половина - единичная матрица
-    Matrix augmented(rows_, 2 * cols_, p_, m_, modulus_);
+    Matrix augmented(rows_, 2 * cols_, field_);
     
     // Копируем исходную матрицу в левую половину
     for (size_t i = 0; i < rows_; ++i) {
@@ -804,46 +979,45 @@ std::optional<Matrix> Matrix::inverse(bool educational) const {
     for (size_t i = 0; i < rows_; ++i) {
         for (size_t j = 0; j < cols_; ++j) {
             if (i == j) {
-                augmented.data_[i][cols_ + j] = GFElement(1, p_, m_, modulus_);
+                augmented.data_[i][cols_ + j] = field_.one();
             } else {
-                augmented.data_[i][cols_ + j] = GFElement(p_, m_, modulus_);
+                augmented.data_[i][cols_ + j] = field_.zero();
             }
         }
     }
     
     if (educational) {
-        std::cout << "Расширенная матрица [A | I]:\n" << augmented << "\n\n";
+        std::cout << "Augmented matrix [A | I]:\n" << augmented << "\n\n";
     }
     
-    // Приводим к RREF
+    // Приводим всю расширенную матрицу к RREF
     auto result = augmented.reducedRowEchelonForm(educational);
     
     if (educational) {
-        std::cout << "\nПосле приведения к RREF:\n" << result.matrix << "\n";
+        std::cout << "\nAfter RREF:\n" << result.matrix << "\n";
         for (const auto& step : result.steps) {
             std::cout << step << "\n";
         }
     }
     
-    // Проверяем, что получили единичную матрицу слева
+    // Проверяем, что слева получилась единичная матрица
     for (size_t i = 0; i < rows_; ++i) {
         for (size_t j = 0; j < cols_; ++j) {
-            // На диагонали должны быть единицы
             bool shouldBeOne = (i == j);
-            bool isOne = result.matrix.data_[i][j].isOne();
+            bool isOne = result.matrix.data_[i][j] == field_.one();
             bool isZero = result.matrix.data_[i][j].isZero();
             
             if (shouldBeOne && !isOne) {
                 // На диагонали должна быть единица, но её нет
                 if (educational) {
-                    std::cout << "\nМатрица необратима (ранг < " << rows_ << ")\n";
+                    std::cout << "\nMatrix is not invertible (rank < " << rows_ << ")\n";
                 }
                 return std::nullopt;
             }
             if (!shouldBeOne && !isZero) {
                 // Вне диагонали должны быть нули, но они не нули
                 if (educational) {
-                    std::cout << "\nМатрица необратима (не удалось получить единичную матрицу слева)\n";
+                    std::cout << "\nMatrix is not invertible (cannot obtain identity matrix)\n";
                 }
                 return std::nullopt;
             }
@@ -851,7 +1025,7 @@ std::optional<Matrix> Matrix::inverse(bool educational) const {
     }
     
     // Матрица обратима! Извлекаем правую половину (это обратная матрица)
-    Matrix inv(rows_, cols_, p_, m_, modulus_);
+    Matrix inv(rows_, cols_, field_);
     for (size_t i = 0; i < rows_; ++i) {
         for (size_t j = 0; j < cols_; ++j) {
             inv.data_[i][j] = result.matrix.data_[i][cols_ + j];
@@ -859,7 +1033,7 @@ std::optional<Matrix> Matrix::inverse(bool educational) const {
     }
     
     if (educational) {
-        std::cout << "\nОбратная матрица найдена!\n";
+        std::cout << "\nInverse matrix found!\n";
     }
     
     return inv;
@@ -873,12 +1047,18 @@ std::optional<Matrix> Matrix::inverse(bool educational) const {
  * @brief Поиск максимальной обратимой подматрицы
  * 
  * Ищет наибольшую подматрицу (выбирая подмножества строк и столбцов),
- * которая является обратимой.
+ * которая является обратимой (имеет полный ранг).
  * 
  * Используется перебор всех комбинаций:
- *  - Сн��чала ищем подматрицу максимально возможного размера
- *  - Если не найдена, уменьшаем размер и повторяем
- *  - Процесс продолжается, пока не найдём обратимую подматрицу
+ *  - Сначала ищем подматрицу максимально возможного размера: min(rows, cols)
+ *  - Если не найдена, уменьшаем размер на 1 и повторяем
+ *  - Процесс продолжается, пока не найдём обратимую подматрицу или не дойдём до размера 1
+ * 
+ * Сложность: O(C(rows, size) * C(cols, size) * size^3), где C(n, k) - биномиальный коэффициент
+ * Может быть очень медленно для больших матриц!
+ * 
+ * @return Информация о найденной подматрице (сама подматрица, индексы строк и столбцов)
+ *         или nullopt, если не найдена обратимая подматрица
  */
 std::optional<SubmatrixInfo> Matrix::findInvertibleSubmatrix() const {
     // Максимальный возможный размер подматрицы
@@ -886,18 +1066,20 @@ std::optional<SubmatrixInfo> Matrix::findInvertibleSubmatrix() const {
     
     // Ищем обратимую подматрицу, начиная с максимального размера
     for (size_t size = maxSize; size >= 1; --size) {
-        // Генерируем все комбинации строк размера 'size'
         std::vector<size_t> rowIndices;
         for (size_t i = 0; i < rows_; ++i) {
             rowIndices.push_back(i);
         }
         
         // Используем битовый вектор для перебора комбинаций строк
+        // true значит строка выбрана
         std::vector<bool> rowSelector(rows_, false);
+        // Выбираем первые 'size' строк
         std::fill(rowSelector.begin(), rowSelector.begin() + size, true);
         
+        // Перебираем все комбинации строк используя std::prev_permutation
         do {
-            // Собираем выбранные индексы строк
+            // Собираем индексы выбранных строк
             std::vector<size_t> selectedRows;
             for (size_t i = 0; i < rows_; ++i) {
                 if (rowSelector[i]) {
@@ -910,7 +1092,7 @@ std::optional<SubmatrixInfo> Matrix::findInvertibleSubmatrix() const {
             std::fill(colSelector.begin(), colSelector.begin() + size, true);
             
             do {
-                // Собираем выбранные индексы столбцов
+                // Собираем индексы выбранных столбцов
                 std::vector<size_t> selectedCols;
                 for (size_t j = 0; j < cols_; ++j) {
                     if (colSelector[j]) {
@@ -918,8 +1100,9 @@ std::optional<SubmatrixInfo> Matrix::findInvertibleSubmatrix() const {
                     }
                 }
                 
-                // Проверяем подматрицу на обратимость
+                // Извлекаем подматрицу с этими строками и столбцами
                 Matrix sub = submatrix(selectedRows, selectedCols);
+                // Проверяем подматрицу на обратимость
                 if (sub.isInvertible()) {
                     // Нашли обратимую подматрицу!
                     SubmatrixInfo info(sub);
@@ -945,12 +1128,20 @@ std::optional<SubmatrixInfo> Matrix::findInvertibleSubmatrix() const {
  * @brief Извлечение подматрицы по заданным индексам строк и столбцов
  * 
  * Создаёт новую матрицу, содержащую только элементы с индексами,
- * указанными в rowIndices и colIndices.
+ * указанными в rowIndices и colIndices. Новая матрица имеет размер
+ * (rowIndices.size() x colIndices.size()).
+ * 
+ * Пример: если rowIndices = {0, 2, 3}, colIndices = {1, 4}, то подматрица
+ * будет содержать элементы [0,1], [0,4], [2,1], [2,4], [3,1], [3,4].
+ * 
+ * @param rowIndices Индексы строк для извлечения
+ * @param colIndices Индексы столбцов для извлечения
+ * @return Новая матрица размера (rowIndices.size() x colIndices.size())
  */
 Matrix Matrix::submatrix(const std::vector<size_t>& rowIndices,
-                        const std::vector<size_t>& colIndices) const {
+                         const std::vector<size_t>& colIndices) const {
     // Создаём результирующую матрицу нужного размера
-    Matrix result(rowIndices.size(), colIndices.size(), p_, m_, modulus_);
+    Matrix result(rowIndices.size(), colIndices.size(), field_);
     
     // Копируем выбранные элементы
     for (size_t i = 0; i < rowIndices.size(); ++i) {
@@ -969,7 +1160,10 @@ Matrix Matrix::submatrix(const std::vector<size_t>& rowIndices,
  * @brief Проверка равенства двух матриц
  * 
  * Две матрицы равны, если они имеют одинаковые размеры и все их
- * соответствующие элементы равны.
+ * соответствующие э��ементы равны.
+ * 
+ * @param other Вторая матрица для сравнения
+ * @return true если матрицы равны, false иначе
  */
 bool Matrix::operator==(const Matrix& other) const {
     // Сравниваем размеры
@@ -1001,6 +1195,11 @@ bool Matrix::operator!=(const Matrix& other) const {
 
 /**
  * @brief Преобразование матрицы в строку
+ * 
+ * Преобразует матрицу в строковое представление, которое можно вывести.
+ * Использует оператор << для форматирования.
+ * 
+ * @return Строка, содержащая представление матрицы
  */
 std::string Matrix::toString() const {
     std::ostringstream oss;
@@ -1011,18 +1210,27 @@ std::string Matrix::toString() const {
 /**
  * @brief Оператор вывода матрицы в поток
  * 
- * Форматирует матрицу для вывода в консоль или файл:
+ * Форматирует матрицу для вывода в консоль или файл.
+ * Формат:
  *  - Каждая строка начинается с [
- *  - Элементы разделены пробелами
+ *  - Элементы разделены пробелами, выравнены по ширине 4 символа
  *  - Каждая строка заканчивается ]
  *  - Строки выводятся одна под другой
+ * 
+ * Пример вывода матрицы 2x3:
+ *  [   0    1    0 ]
+ *  [   1    0    1 ]
+ * 
+ * @param os Выходной поток (cout, файл, и т.д.)
+ * @param mat Матрица для вывода
+ * @return Ссылка на выходной поток
  */
 std::ostream& operator<<(std::ostream& os, const Matrix& mat) {
     for (size_t i = 0; i < mat.rows_; ++i) {
         os << "[";
         for (size_t j = 0; j < mat.cols_; ++j) {
             if (j > 0) os << " ";
-            os << std::setw(4) << mat.data_[i][j];
+            os << std::setw(4) << mat.data_[i][j].value();
         }
         os << " ]";
         if (i < mat.rows_ - 1) os << "\n";
