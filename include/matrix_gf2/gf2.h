@@ -95,6 +95,8 @@ public:
     };
 
     // Конструкторы
+    Field(); // По умолчанию: GF(2), степень 1
+
     explicit Field(size_t degree, InverseMode invMode = InverseMode::LogTables);
 
     Field(size_t degree, uint64_t irreducible_poly, 
@@ -136,6 +138,9 @@ public:
     Element fromExponentValue(int64_t exp) const;
 
     void buildTables(); // Таблицы многочленов
+
+    // Псевдоним типа для удобства
+    using GF2Element = Element;
 
 private:
 
@@ -180,6 +185,7 @@ public:
 
     Element operator+(const Element& other) const;
     Element operator-(const Element& other) const;
+    Element operator-() const;
     Element operator*(const Element& other) const;
     Element operator/(const Element& other) const;
     Element operator^(uint64_t exp) const;
@@ -190,6 +196,10 @@ public:
     bool operator==(const Element& other) const;
     bool operator!=(const Element& other) const;
     bool operator<(const Element& other) const;
+
+    // Проверки значения
+    bool isZero() const { return m_value == 0; }
+    bool isOne() const { return m_value == 1; }
 
     // Операции
       size_t hammingWeight() const;
