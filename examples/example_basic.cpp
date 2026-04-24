@@ -58,7 +58,7 @@ int main() {
     std::cout << I << "\n\n";
 
     std::cout << "9. Приведение гаусом матрицы 7x7 над GF(11^3):\n";
-    Matrix I2 = Matrix::random(7, 7, 11, 3, {1, 0, 1, 4})
+    Matrix I2 = Matrix::random(7, 7, 11, 3, {1, 0, 1, 4});
     std::cout << "Исходная матрица:\n" << I2 << "\n\n";
     
     auto result2 = I2.reducedRowEchelonForm(true);
