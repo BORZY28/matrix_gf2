@@ -15,6 +15,7 @@ endif()
 
 # Библиотека matrix_gf2
 add_library(matrix_gf2 STATIC
+    src/gf2.cpp
     src/gf_element.cpp
     src/matrix.cpp
 )
@@ -41,6 +42,9 @@ option(BUILD_TESTS "Build tests" ON)
 if(BUILD_TESTS)
     add_executable(test_matrix_gf2 tests/test_matrix_gf2.cpp)
     target_link_libraries(test_matrix_gf2 matrix_gf2)
+
+    add_executable(test_matrix_gf2_new tests/test_matrix_gf2_new.cpp)
+    target_link_libraries(test_matrix_gf2_new matrix_gf2)
 endif()
 
 # Установка

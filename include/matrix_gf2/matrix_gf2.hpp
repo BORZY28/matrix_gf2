@@ -1,5 +1,4 @@
 
-
 #include "gf2.h"
 #include <vector>
 #include <string>
@@ -7,6 +6,9 @@
 #include <functional>
 
 namespace matrix_gf2 {
+
+// Псевдоним типа для поля GF(2^m) из пространства имён gf2
+using GF2 = gf2::Field;
 
 // Forward declaration
 class Matrix;

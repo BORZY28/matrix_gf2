@@ -1,6 +1,8 @@
-#include "gf2.h"
+#include "../include/matrix_gf2/gf2.h"
 
 namespace gf2 {
+
+Field::Field() : Field(1) {}
 
 Field::Field(size_t degree, InverseMode invMode)
     : Field(degree, getDefaultPolynomial(degree), invMode) {}
@@ -271,6 +273,11 @@ Field::Element Field::Element::operator+(const Element& other) const {
 
 Field::Element Field::Element::operator-(const Element& other) const {
     return *this + other;
+}
+
+Field::Element Field::Element::operator-() const {
+    // В GF(2^m) характеристика равна 2, поэтому -a = a
+    return *this;
 }
 
 Field::Element Field::Element::operator*(const Element& other) const {
