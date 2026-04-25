@@ -1,4 +1,4 @@
-#include "../include/matrix_gf2/gf2.h"
+#include "gf2.h"
 
 namespace gf2 {
 

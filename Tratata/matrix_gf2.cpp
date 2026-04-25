@@ -1,4 +1,4 @@
-#include "../include/matrix_gf2/matrix_gf2.hpp"
+#include "matrix_gf2.hpp"
 #include <sstream>
 #include <iomanip>
 #include <random>
