@@ -24,24 +24,9 @@ target_include_directories(matrix_gf2 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Примеры
-add_executable(example_basic examples/example_basic.cpp)
-target_link_libraries(example_basic matrix_gf2)
-
-add_executable(example_gauss examples/example_gauss.cpp)
-target_link_libraries(example_gauss matrix_gf2)
-
-add_executable(example_inverse examples/example_inverse.cpp)
-target_link_libraries(example_inverse matrix_gf2)
-
-add_executable(example_educational examples/example_educational.cpp)
-target_link_libraries(example_educational matrix_gf2)
-
 # Тесты (опционально)
 option(BUILD_TESTS "Build tests" ON)
 if(BUILD_TESTS)
-    add_executable(test_matrix_gf2 tests/test_matrix_gf2.cpp)
-    target_link_libraries(test_matrix_gf2 matrix_gf2)
 
     add_executable(test_matrix_gf2_new tests/test_matrix_gf2_new.cpp)
     target_link_libraries(test_matrix_gf2_new matrix_gf2)

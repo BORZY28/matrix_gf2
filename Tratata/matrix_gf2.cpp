@@ -301,6 +301,7 @@ Matrix Matrix::operator*(const Matrix& other) const {
     return result;
 }
 
+
 /**
  * @brief Сложение с присваиванием (+=)
  * 
@@ -363,6 +364,44 @@ Matrix Matrix::operator*(const GF2::GF2Element& scalar) const {
 Matrix& Matrix::operator*=(const GF2::GF2Element& scalar) {
     *this = *this * scalar;
     return *this;
+}
+
+
+// ============================================================================
+// ОПЕРАЦИИ СРАВНЕНИЯ
+// ============================================================================
+
+/**
+ * @brief Проверка равенства двух матриц
+ * 
+ * Две матрицы равны, если они имеют одинаковые размеры и все их
+ * соответствующие э��ементы равны.
+ * 
+ * @param other Вторая матрица для сравнения
+ * @return true если матрицы равны, false иначе
+ */
+bool Matrix::operator==(const Matrix& other) const {
+    // Сравниваем размеры
+    if (rows_ != other.rows_ && cols_ != other.cols_) {
+        return false;
+    }
+    
+    // Сравниваем все элементы
+    for (size_t i = 0; i < rows_; ++i) {
+        for (size_t j = 0; j < cols_; ++j) {
+            if (data_[i][j] != other.data_[i][j]) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief Проверка неравенства двух матриц
+ */
+bool Matrix::operator!=(const Matrix& other) const {
+    return !(*this == other);
 }
 
 // ============================================================================
@@ -1152,42 +1191,7 @@ Matrix Matrix::submatrix(const std::vector<size_t>& rowIndices,
     return result;
 }
 
-// ============================================================================
-// ОПЕРАЦИИ СРАВНЕНИЯ
-// ============================================================================
 
-/**
- * @brief Проверка равенства двух матриц
- * 
- * Две матрицы равны, если они имеют одинаковые размеры и все их
- * соответствующие э��ементы равны.
- * 
- * @param other Вторая матрица для сравнения
- * @return true если матрицы равны, false иначе
- */
-bool Matrix::operator==(const Matrix& other) const {
-    // Сравниваем размеры
-    if (rows_ != other.rows_ || cols_ != other.cols_) {
-        return false;
-    }
-    
-    // Сравниваем все элементы
-    for (size_t i = 0; i < rows_; ++i) {
-        for (size_t j = 0; j < cols_; ++j) {
-            if (data_[i][j] != other.data_[i][j]) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
-/**
- * @brief Проверка неравенства двух матриц
- */
-bool Matrix::operator!=(const Matrix& other) const {
-    return !(*this == other);
-}
 
 // ============================================================================
 // ВЫВОД МАТРИЦЫ
