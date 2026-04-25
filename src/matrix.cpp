@@ -382,7 +382,7 @@ Matrix& Matrix::operator*=(const GF2::GF2Element& scalar) {
  */
 bool Matrix::operator==(const Matrix& other) const {
     // Сравниваем размеры
-    if (rows_ != other.rows_ && cols_ != other.cols_) {
+    if (rows_ != other.rows_ || cols_ != other.cols_) {
         return false;
     }
     
