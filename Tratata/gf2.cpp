@@ -268,7 +268,7 @@ std::string Field::Element::toString() const {
 }
 
 Field::Element Field::Element::operator+(const Element& other) const {
-    // checkSameField(other);
+    checkSameField(other);
     return Element(*m_field, m_field->add(m_value, other.m_value));
 }
 
@@ -282,12 +282,12 @@ Field::Element Field::Element::operator-() const {
 }
 
 Field::Element Field::Element::operator*(const Element& other) const {
-    // checkSameField(other);
+    checkSameField(other);
     return Element(*m_field, m_field->multiply(m_value, other.m_value));
 }
 
 Field::Element Field::Element::operator/(const Element& other) const {
-    // checkSameField(other);
+    checkSameField(other);
     return Element(*m_field, m_field->divide(m_value, other.m_value));
 }
 
